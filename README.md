@@ -15,15 +15,17 @@ Before publishing, replace `hello@example.com` in `src/main.jsx` with the portfo
 
 ## Animated terrain background
 
-The hero renders a Three.js terrain scene from a checked-in, 16-bit height map of the Spruce Knob–Seneca Rocks area in Monongahela National Forest. The source elevation is the public-domain USGS 3DEP Bare Earth DEM. Its exact export request, geographic bounds, elevation range, encoding, and derivative-channel descriptions are recorded in `src/assets/terrain/monongahela-terrain.json`.
+The hero renders a five-tile Three.js terrain corridor through Monongahela National Forest. It starts on the original Spruce Knob–Seneca Rocks view, progressively loads the south, southwest, west, and north sections, then begins a slow 120-second out-and-back fly-over. Reduced-motion visitors keep the original static camera.
 
-The browser never contacts USGS. It loads `monongahela-height.r16` and the packed hydrology/ridge/valley texture from the built site, while the original hero image remains the loading and WebGL fallback.
+The source elevation is the public-domain USGS 3DEP Bare Earth DEM. Every tile uses one shared elevation range and a one-pixel neighbor gutter. Hydrology, ridge, and valley derivatives are calculated on the complete source mosaic before it is split, which keeps geometry and shading continuous across internal boundaries. Exact export requests, bounds, encoding, camera controls, and asset names are recorded in `src/assets/terrain/monongahela-terrain.json`.
+
+The deployed browser never contacts USGS. It loads the center assets first while the original hero image remains the loading and WebGL fallback, then preloads the rest of the local corridor in camera-route order.
 
 To reproduce the derived assets:
 
-1. Open the `source.request` URL from the terrain metadata and download the GeoTIFF from the returned `href`.
+1. Open the top-level `source.request` URL from the terrain metadata and download the returned 3072×3072 GeoTIFF from its `href`.
 2. Install the local preprocessing requirements with `python -m pip install -r scripts/requirements-terrain.txt`.
-3. Run `python scripts/process-terrain.py path/to/downloaded-dem.tif` from the repository root.
+3. Run `python scripts/process-terrain.py path/to/downloaded-mosaic.tif` from the repository root.
 4. Run `npm run validate:terrain` to verify the binary encoding and companion texture.
 
 The production build runs terrain validation automatically before Vite bundles the application.

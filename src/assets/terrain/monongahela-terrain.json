@@ -1,47 +1,276 @@
 {
-  "name": "Spruce Knob–Seneca Rocks, Monongahela National Forest",
-  "width": 1024,
-  "height": 1024,
+  "schemaVersion": 2,
+  "name": "Monongahela National Forest terrain corridor",
+  "tileInteriorSize": 1024,
+  "textureWidth": 1026,
+  "textureHeight": 1026,
+  "textureGutter": 1,
   "byteOrder": "little-endian",
-  "encoding": "uint16 normalized to the recorded elevation range",
-  "minElevationM": 362.7622,
+  "encoding": "uint16 normalized to the shared elevation range",
+  "minElevationM": 206.3078,
   "maxElevationM": 1482.0179,
-  "horizontalScaleM": 47497.164,
+  "colorElevationRangeM": {
+    "min": 362.7622,
+    "max": 1482.0179
+  },
+  "elevationOriginM": 362.7622,
+  "metersPerWorldUnit": 294.540984,
+  "tileWorldSize": 20.0,
   "footprintM": {
-    "width": 47867.381,
-    "depth": 47126.946
+    "width": 143602.143,
+    "depth": 141380.838
   },
   "bounds": {
-    "west": -79.68,
-    "south": 38.62,
-    "east": -79.25,
-    "north": 38.95
+    "west": -80.11,
+    "south": 38.28847463,
+    "east": -78.82,
+    "north": 39.27847074
   },
   "projectedBounds": {
-    "xmin": -8869937.026,
-    "ymin": 4667385.084,
-    "xmax": -8822069.645,
-    "ymax": 4714512.03,
+    "xmin": -8917804.407,
+    "ymin": 4620258.138,
+    "xmax": -8774202.264,
+    "ymax": 4761638.976,
     "spatialReference": "EPSG:3857"
   },
-  "center": {
-    "latitude": 38.785,
-    "longitude": -79.465
-  },
-  "verticalScale": 6.5,
-  "assets": {
-    "height": "monongahela-height.r16",
-    "effects": "monongahela-effects.png",
-    "effectsChannels": {
-      "red": "D8 flow accumulation",
-      "green": "local ridge strength",
-      "blue": "low-slope valley suitability"
+  "tiles": [
+    {
+      "id": "c",
+      "name": "Spruce Knob–Seneca Rocks",
+      "grid": {
+        "column": 0,
+        "row": 0
+      },
+      "bounds": {
+        "west": -79.68,
+        "south": 38.62,
+        "east": -79.25,
+        "north": 38.95
+      },
+      "projectedBounds": {
+        "xmin": -8869937.026,
+        "ymin": 4667385.084,
+        "xmax": -8822069.645,
+        "ymax": 4714512.03,
+        "spatialReference": "EPSG:3857"
+      },
+      "observedElevationM": {
+        "min": 362.7622,
+        "max": 1482.0179
+      },
+      "assets": {
+        "height": "monongahela-height.r16",
+        "effects": "monongahela-effects.png"
+      },
+      "sourceRequest": "https://elevation.nationalmap.gov/arcgis/rest/services/3DEPElevation/ImageServer/exportImage?bbox=-8869937.026%2C4667385.084%2C-8822069.645%2C4714512.03&bboxSR=3857&imageSR=3857&size=1024%2C1024&format=tiff&pixelType=F32&interpolation=RSP_BilinearInterpolation&adjustAspectRatio=false&f=json"
+    },
+    {
+      "id": "s",
+      "name": "South Fork–Franklin",
+      "grid": {
+        "column": 0,
+        "row": 1
+      },
+      "bounds": {
+        "west": -79.68,
+        "south": 38.28847463,
+        "east": -79.25,
+        "north": 38.62
+      },
+      "projectedBounds": {
+        "xmin": -8869937.026,
+        "ymin": 4620258.138,
+        "xmax": -8822069.645,
+        "ymax": 4667385.084,
+        "spatialReference": "EPSG:3857"
+      },
+      "observedElevationM": {
+        "min": 484.6811,
+        "max": 1396.0669
+      },
+      "assets": {
+        "height": "monongahela-s-height.r16",
+        "effects": "monongahela-s-effects.png"
+      },
+      "sourceRequest": "https://elevation.nationalmap.gov/arcgis/rest/services/3DEPElevation/ImageServer/exportImage?bbox=-8869937.026%2C4620258.138%2C-8822069.645%2C4667385.084&bboxSR=3857&imageSR=3857&size=1024%2C1024&format=tiff&pixelType=F32&interpolation=RSP_BilinearInterpolation&adjustAspectRatio=false&f=json"
+    },
+    {
+      "id": "sw",
+      "name": "Greenbrier Valley",
+      "grid": {
+        "column": -1,
+        "row": 1
+      },
+      "bounds": {
+        "west": -80.11,
+        "south": 38.28847463,
+        "east": -79.68,
+        "north": 38.62
+      },
+      "projectedBounds": {
+        "xmin": -8917804.407,
+        "ymin": 4620258.138,
+        "xmax": -8869937.026,
+        "ymax": 4667385.084,
+        "spatialReference": "EPSG:3857"
+      },
+      "observedElevationM": {
+        "min": 653.8323,
+        "max": 1477.365
+      },
+      "assets": {
+        "height": "monongahela-sw-height.r16",
+        "effects": "monongahela-sw-effects.png"
+      },
+      "sourceRequest": "https://elevation.nationalmap.gov/arcgis/rest/services/3DEPElevation/ImageServer/exportImage?bbox=-8917804.407%2C4620258.138%2C-8869937.026%2C4667385.084&bboxSR=3857&imageSR=3857&size=1024%2C1024&format=tiff&pixelType=F32&interpolation=RSP_BilinearInterpolation&adjustAspectRatio=false&f=json"
+    },
+    {
+      "id": "w",
+      "name": "Cheat Mountain",
+      "grid": {
+        "column": -1,
+        "row": 0
+      },
+      "bounds": {
+        "west": -80.11,
+        "south": 38.62,
+        "east": -79.68,
+        "north": 38.95
+      },
+      "projectedBounds": {
+        "xmin": -8917804.407,
+        "ymin": 4667385.084,
+        "xmax": -8869937.026,
+        "ymax": 4714512.03,
+        "spatialReference": "EPSG:3857"
+      },
+      "observedElevationM": {
+        "min": 542.2601,
+        "max": 1320.6562
+      },
+      "assets": {
+        "height": "monongahela-w-height.r16",
+        "effects": "monongahela-w-effects.png"
+      },
+      "sourceRequest": "https://elevation.nationalmap.gov/arcgis/rest/services/3DEPElevation/ImageServer/exportImage?bbox=-8917804.407%2C4667385.084%2C-8869937.026%2C4714512.03&bboxSR=3857&imageSR=3857&size=1024%2C1024&format=tiff&pixelType=F32&interpolation=RSP_BilinearInterpolation&adjustAspectRatio=false&f=json"
+    },
+    {
+      "id": "n",
+      "name": "Northern Monongahela",
+      "grid": {
+        "column": 0,
+        "row": -1
+      },
+      "bounds": {
+        "west": -79.68,
+        "south": 38.95,
+        "east": -79.25,
+        "north": 39.27847074
+      },
+      "projectedBounds": {
+        "xmin": -8869937.026,
+        "ymin": 4714512.03,
+        "xmax": -8822069.645,
+        "ymax": 4761638.976,
+        "spatialReference": "EPSG:3857"
+      },
+      "observedElevationM": {
+        "min": 328.0733,
+        "max": 1356.8082
+      },
+      "assets": {
+        "height": "monongahela-n-height.r16",
+        "effects": "monongahela-n-effects.png"
+      },
+      "sourceRequest": "https://elevation.nationalmap.gov/arcgis/rest/services/3DEPElevation/ImageServer/exportImage?bbox=-8869937.026%2C4714512.03%2C-8822069.645%2C4761638.976&bboxSR=3857&imageSR=3857&size=1024%2C1024&format=tiff&pixelType=F32&interpolation=RSP_BilinearInterpolation&adjustAspectRatio=false&f=json"
     }
+  ],
+  "effectsChannels": {
+    "red": "D8 flow accumulation",
+    "green": "local ridge strength",
+    "blue": "low-slope valley suitability"
+  },
+  "flightPath": {
+    "durationSeconds": 120,
+    "positions": [
+      [
+        -7.05,
+        9.55,
+        16.15
+      ],
+      [
+        -5.5,
+        9.1,
+        28.0
+      ],
+      [
+        -16.0,
+        8.9,
+        33.0
+      ],
+      [
+        -17.0,
+        9.3,
+        17.0
+      ],
+      [
+        -7.05,
+        9.55,
+        16.15
+      ],
+      [
+        -5.8,
+        9.2,
+        1.0
+      ],
+      [
+        -4.5,
+        8.9,
+        -16.0
+      ]
+    ],
+    "lookAt": [
+      [
+        2.15,
+        1.05,
+        -1.35
+      ],
+      [
+        1.0,
+        1.0,
+        13.0
+      ],
+      [
+        -12.0,
+        1.1,
+        18.0
+      ],
+      [
+        -6.0,
+        1.0,
+        2.0
+      ],
+      [
+        2.15,
+        1.05,
+        -1.35
+      ],
+      [
+        1.0,
+        1.0,
+        -14.0
+      ],
+      [
+        0.0,
+        1.0,
+        -27.0
+      ]
+    ]
   },
   "source": {
     "provider": "U.S. Geological Survey 3D Elevation Program (3DEP)",
     "dataset": "Bare Earth DEM Dynamic Service",
-    "request": "https://elevation.nationalmap.gov/arcgis/rest/services/3DEPElevation/ImageServer/exportImage?bbox=-8869937.026%2C4667385.084%2C-8822069.645%2C4714512.030&bboxSR=3857&imageSR=3857&size=1024%2C1024&format=tiff&pixelType=F32&interpolation=RSP_BilinearInterpolation&adjustAspectRatio=false&f=json",
+    "request": "https://elevation.nationalmap.gov/arcgis/rest/services/3DEPElevation/ImageServer/exportImage?bbox=-8917804.407%2C4620258.138%2C-8774202.264%2C4761638.976&bboxSR=3857&imageSR=3857&size=3072%2C3072&format=tiff&pixelType=F32&interpolation=RSP_BilinearInterpolation&adjustAspectRatio=false&f=json",
     "license": "Public domain; available without use restrictions",
     "retrieved": "2026-09-12",
     "sourceProjection": "EPSG:3857",
@@ -49,12 +278,12 @@
     "serverResampling": "bilinear"
   },
   "processing": {
-    "heightEncoding": "min/max normalized to unsigned 16-bit integer",
-    "heightByteLength": 2097152,
-    "derivatives": "D8 flow accumulation at 256², ridge residual, and slope-based valley suitability",
-    "maxFlowAccumulationCells": 1735,
-    "flowCoveragePercent": 12.701,
-    "ridgeCoveragePercent": 31.111,
-    "valleyCoveragePercent": 12.888
+    "heightEncoding": "shared min/max normalized unsigned 16-bit integer",
+    "heightByteLengthPerTile": 2105352,
+    "derivatives": "Calculated on the complete 3072-square mosaic before guttered tile extraction",
+    "maxFlowAccumulationCells": 2408,
+    "flowCoveragePercent": 12.761,
+    "ridgeCoveragePercent": 28.382,
+    "valleyCoveragePercent": 18.26
   }
 }

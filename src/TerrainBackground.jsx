@@ -1,29 +1,59 @@
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
-import heightMapUrl from "./assets/terrain/monongahela-height.r16?url";
-import effectsMapUrl from "./assets/terrain/monongahela-effects.png";
 import terrainMetadata from "./assets/terrain/monongahela-terrain.json";
 
-const TERRAIN_HEIGHT = 3.8;
+const heightAssetUrls = import.meta.glob("./assets/terrain/*.r16", {
+  eager: true,
+  query: "?url",
+  import: "default",
+});
+const effectsAssetUrls = import.meta.glob("./assets/terrain/*-effects.png", {
+  eager: true,
+  query: "?url",
+  import: "default",
+});
+
+const assetUrl = (assets, filename) => {
+  const url = assets[`./assets/terrain/${filename}`];
+  if (!url) throw new Error(`Terrain asset is missing from the bundle: ${filename}`);
+  return url;
+};
 
 const vertexShader = /* glsl */ `
   uniform sampler2D uHeightMap;
-  uniform float uHeightScale;
+  uniform vec2 uUvScale;
+  uniform vec2 uUvOffset;
+  uniform float uElevationMin;
+  uniform float uElevationRange;
+  uniform float uElevationOrigin;
+  uniform float uMetersPerWorldUnit;
+  uniform float uColorElevationMin;
+  uniform float uColorElevationRange;
   varying vec2 vUv;
   varying float vHeight;
   varying vec3 vWorldPosition;
 
-  float readHeight(vec2 sampleUv) {
-    vec2 packed = texture2D(uHeightMap, sampleUv).rg;
-    return (packed.r * 65280.0 + packed.g * 255.0) / 65535.0;
+  vec2 tileUv(vec2 sampleUv) {
+    return sampleUv * uUvScale + uUvOffset;
+  }
+
+  float readElevation(vec2 sampleUv) {
+    vec2 packed = texture2D(uHeightMap, tileUv(sampleUv)).rg;
+    float encoded = (packed.r * 65280.0 + packed.g * 255.0) / 65535.0;
+    return uElevationMin + encoded * uElevationRange;
+  }
+
+  float elevationToWorld(float elevation) {
+    return (elevation - uElevationOrigin) / uMetersPerWorldUnit;
   }
 
   void main() {
     vUv = uv;
     vec2 terrainUv = vec2(uv.x, 1.0 - uv.y);
-    vHeight = readHeight(terrainUv);
+    float elevation = readElevation(terrainUv);
+    vHeight = clamp((elevation - uColorElevationMin) / uColorElevationRange, 0.0, 1.0);
     vec3 displaced = position;
-    displaced.y += vHeight * uHeightScale;
+    displaced.y += elevationToWorld(elevation);
     vec4 worldPosition = modelMatrix * vec4(displaced, 1.0);
     vWorldPosition = worldPosition.xyz;
     gl_Position = projectionMatrix * viewMatrix * worldPosition;
@@ -33,8 +63,13 @@ const vertexShader = /* glsl */ `
 const fragmentShader = /* glsl */ `
   uniform sampler2D uHeightMap;
   uniform sampler2D uEffectsMap;
+  uniform vec2 uUvScale;
+  uniform vec2 uUvOffset;
   uniform vec2 uTexel;
-  uniform float uHeightScale;
+  uniform float uElevationMin;
+  uniform float uElevationRange;
+  uniform float uElevationOrigin;
+  uniform float uMetersPerWorldUnit;
   uniform float uTerrainSize;
   uniform float uTime;
   varying vec2 vUv;
@@ -56,24 +91,33 @@ const fragmentShader = /* glsl */ `
     );
   }
 
-  float readHeight(vec2 sampleUv) {
-    vec2 packed = texture2D(uHeightMap, sampleUv).rg;
-    return (packed.r * 65280.0 + packed.g * 255.0) / 65535.0;
+  vec2 tileUv(vec2 sampleUv) {
+    return sampleUv * uUvScale + uUvOffset;
+  }
+
+  float readElevation(vec2 sampleUv) {
+    vec2 packed = texture2D(uHeightMap, tileUv(sampleUv)).rg;
+    float encoded = (packed.r * 65280.0 + packed.g * 255.0) / 65535.0;
+    return uElevationMin + encoded * uElevationRange;
+  }
+
+  float elevationToWorld(float elevation) {
+    return (elevation - uElevationOrigin) / uMetersPerWorldUnit;
   }
 
   void main() {
     vec2 terrainUv = vec2(vUv.x, 1.0 - vUv.y);
-    float heightLeft = readHeight(terrainUv - vec2(uTexel.x, 0.0));
-    float heightRight = readHeight(terrainUv + vec2(uTexel.x, 0.0));
-    float heightDown = readHeight(terrainUv - vec2(0.0, uTexel.y));
-    float heightUp = readHeight(terrainUv + vec2(0.0, uTexel.y));
+    float heightLeft = elevationToWorld(readElevation(terrainUv - vec2(uTexel.x, 0.0)));
+    float heightRight = elevationToWorld(readElevation(terrainUv + vec2(uTexel.x, 0.0)));
+    float heightDown = elevationToWorld(readElevation(terrainUv - vec2(0.0, uTexel.y)));
+    float heightUp = elevationToWorld(readElevation(terrainUv + vec2(0.0, uTexel.y)));
     vec3 normal = normalize(vec3(
-      (heightLeft - heightRight) * uHeightScale * 75.0,
+      (heightLeft - heightRight) * 75.0,
       2.0 * uTerrainSize * uTexel.x,
-      (heightDown - heightUp) * uHeightScale * 75.0
+      (heightDown - heightUp) * 75.0
     ));
 
-    vec3 effects = texture2D(uEffectsMap, terrainUv).rgb;
+    vec3 effects = texture2D(uEffectsMap, tileUv(terrainUv)).rgb;
     vec3 lightDirection = normalize(vec3(-0.55, 0.72, 0.42));
     float diffuse = max(dot(normal, lightDirection), 0.0);
     float backLight = pow(max(dot(normal, normalize(vec3(0.55, 0.3, -0.35))), 0.0), 2.0);
@@ -88,7 +132,7 @@ const fragmentShader = /* glsl */ `
     color += vec3(0.06, 0.16, 0.18) * backLight * 0.34;
     color *= mix(1.0, 0.48, slope * 0.48);
 
-    float elevationMeters = mix(${terrainMetadata.minElevationM.toFixed(4)}, ${terrainMetadata.maxElevationM.toFixed(4)}, vHeight);
+    float elevationMeters = readElevation(terrainUv);
     float contourCoordinate = elevationMeters / 42.0;
     float contourDistance = min(fract(contourCoordinate), 1.0 - fract(contourCoordinate));
     float contour = 1.0 - smoothstep(0.0, fwidth(contourCoordinate) * 1.45, contourDistance);
@@ -99,16 +143,13 @@ const fragmentShader = /* glsl */ `
     color = mix(color, vec3(0.015, 0.42, 0.58) * waterPulse, water * 0.76);
     color += vec3(0.08, 0.55, 0.72) * pow(water, 2.2) * 0.34;
 
-    float routeNoise = noise(terrainUv * vec2(31.0, 37.0) + vec2(uTime * 0.018, 0.0));
+    float routeNoise = noise((vWorldPosition.xz + vec2(18.0)) * 1.55 + vec2(uTime * 0.018, 0.0));
     float ridgeRoute = smoothstep(0.48, 0.88, effects.g) * smoothstep(0.55, 0.82, routeNoise);
     color += vec3(0.55, 0.025, 0.30) * ridgeRoute * (0.28 + 0.14 * sin(uTime * 1.2));
 
-    float aerialHaze = smoothstep(-9.0, 8.0, vWorldPosition.z);
+    float distanceHaze = smoothstep(18.0, 56.0, length(vWorldPosition.xz));
     float hazeNoise = noise(vWorldPosition.xz * 0.18 + vec2(uTime * 0.012, 0.0));
-    color = mix(color, vec3(0.055, 0.105, 0.12), aerialHaze * hazeNoise * 0.14);
-    float edge = smoothstep(0.0, 0.2, vUv.x) * smoothstep(0.0, 0.2, 1.0 - vUv.x);
-    edge *= smoothstep(0.0, 0.16, vUv.y) * smoothstep(0.0, 0.16, 1.0 - vUv.y);
-    color *= 0.54 + edge * 0.46;
+    color = mix(color, vec3(0.055, 0.105, 0.12), distanceHaze * (0.08 + hazeNoise * 0.12));
     gl_FragColor = vec4(color, 1.0);
   }
 `;
@@ -184,7 +225,7 @@ function mulberry32(seed) {
 }
 
 function decodeHeightMap(buffer) {
-  const expectedBytes = terrainMetadata.width * terrainMetadata.height * 2;
+  const expectedBytes = terrainMetadata.textureWidth * terrainMetadata.textureHeight * 2;
   if (buffer.byteLength !== expectedBytes) throw new Error(`Unexpected terrain byte length: ${buffer.byteLength}`);
   const littleEndian = new Uint16Array(new Uint8Array([1, 0]).buffer)[0] === 1;
   if (littleEndian) return new Uint16Array(buffer);
@@ -195,19 +236,16 @@ function decodeHeightMap(buffer) {
 }
 
 function makeHeightTexture(values) {
-  // RG packing keeps the checked-in R16 precision while using a universally
-  // filterable WebGL2 texture format.
   const packed = new Uint8Array(values.length * 4);
   for (let index = 0; index < values.length; index += 1) {
     packed[index * 4] = values[index] >>> 8;
     packed[index * 4 + 1] = values[index] & 255;
-    packed[index * 4 + 2] = 0;
     packed[index * 4 + 3] = 255;
   }
   const texture = new THREE.DataTexture(
     packed,
-    terrainMetadata.width,
-    terrainMetadata.height,
+    terrainMetadata.textureWidth,
+    terrainMetadata.textureHeight,
     THREE.RGBAFormat,
     THREE.UnsignedByteType,
   );
@@ -218,31 +256,44 @@ function makeHeightTexture(values) {
   return texture;
 }
 
-function sampleHeight(values, u, row) {
-  const x = clamp(Math.round(u * (terrainMetadata.width - 1)), 0, terrainMetadata.width - 1);
-  const y = clamp(Math.round(row * (terrainMetadata.height - 1)), 0, terrainMetadata.height - 1);
-  return values[y * terrainMetadata.width + x] / 65535;
+function sampleElevation(values, u, row) {
+  const gutter = terrainMetadata.textureGutter;
+  const interior = terrainMetadata.tileInteriorSize;
+  const x = gutter + clamp(Math.round(u * (interior - 1)), 0, interior - 1);
+  const y = gutter + clamp(Math.round(row * (interior - 1)), 0, interior - 1);
+  const encoded = values[y * terrainMetadata.textureWidth + x] / 65535;
+  return terrainMetadata.minElevationM + encoded * (terrainMetadata.maxElevationM - terrainMetadata.minElevationM);
 }
 
-function terrainPoint(values, u, row, lift = 0.04) {
-  return new THREE.Vector3((u - 0.5) * 20, sampleHeight(values, u, row) * TERRAIN_HEIGHT + lift, (row - 0.5) * 20);
+function terrainPoint(values, tile, u, row, lift = 0.04) {
+  const size = terrainMetadata.tileWorldSize;
+  const elevation = sampleElevation(values, u, row);
+  const height = (elevation - terrainMetadata.elevationOriginM) / terrainMetadata.metersPerWorldUnit;
+  return new THREE.Vector3(
+    (u - 0.5 + tile.grid.column) * size,
+    height + lift,
+    (row - 0.5 + tile.grid.row) * size,
+  );
 }
 
-function makeLights(values, isMobile, pixelRatio) {
-  const random = mulberry32(19780309);
+function makeLights(values, tile, isMobile, pixelRatio) {
+  const tileSeed = [...tile.id].reduce((total, character) => total + character.charCodeAt(0), 19780309);
+  const random = mulberry32(tileSeed);
   const positions = [];
   const seeds = [];
-  const targetCount = isMobile ? 260 : 620;
+  const targetCount = isMobile ? 85 : 190;
   let attempts = 0;
-  while (seeds.length < targetCount && attempts < targetCount * 18) {
+  while (seeds.length < targetCount && attempts < targetCount * 20) {
     attempts += 1;
-    const u = 0.48 + random() * 0.5;
-    const row = 0.08 + random() * 0.84;
-    const height = sampleHeight(values, u, row);
-    const deltaX = Math.abs(sampleHeight(values, u + 0.004, row) - sampleHeight(values, u - 0.004, row));
-    const deltaY = Math.abs(sampleHeight(values, u, row + 0.004) - sampleHeight(values, u, row - 0.004));
-    if (height > 0.72 || deltaX + deltaY > 0.032 || random() < height * 0.72) continue;
-    const point = terrainPoint(values, u, row, 0.055 + random() * 0.055);
+    const u = tile.id === "c" ? 0.48 + random() * 0.5 : 0.05 + random() * 0.9;
+    const row = 0.06 + random() * 0.88;
+    const elevation = sampleElevation(values, u, row);
+    const colorRange = terrainMetadata.colorElevationRangeM;
+    const height = clamp((elevation - colorRange.min) / (colorRange.max - colorRange.min), 0, 1);
+    const deltaX = Math.abs(sampleElevation(values, u + 0.004, row) - sampleElevation(values, u - 0.004, row));
+    const deltaY = Math.abs(sampleElevation(values, u, row + 0.004) - sampleElevation(values, u, row - 0.004));
+    if (height > 0.72 || deltaX + deltaY > 36 || random() < height * 0.72) continue;
+    const point = terrainPoint(values, tile, u, row, 0.055 + random() * 0.055);
     positions.push(point.x, point.y, point.z);
     seeds.push(random());
   }
@@ -260,13 +311,19 @@ function makeLights(values, isMobile, pixelRatio) {
   return new THREE.Points(geometry, material);
 }
 
-function makeRoutes(values) {
+function makeRoutes(values, tile) {
   const group = new THREE.Group();
-  const material = new THREE.MeshBasicMaterial({ color: 0xff2a92, transparent: true, opacity: 0.52, depthWrite: false, blending: THREE.AdditiveBlending });
+  const material = new THREE.MeshBasicMaterial({
+    color: 0xff2a92,
+    transparent: true,
+    opacity: 0.52,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  });
   const nodePositions = [];
   routeCoordinates.forEach((coordinates) => {
     const points = coordinates.map(([u, row]) => {
-      const point = terrainPoint(values, u, row, 0.095);
+      const point = terrainPoint(values, tile, u, row, 0.095);
       nodePositions.push(point.x, point.y, point.z);
       return point;
     });
@@ -274,7 +331,14 @@ function makeRoutes(values) {
   });
   const nodes = new THREE.BufferGeometry();
   nodes.setAttribute("position", new THREE.Float32BufferAttribute(nodePositions, 3));
-  group.add(new THREE.Points(nodes, new THREE.PointsMaterial({ color: 0xff54aa, size: 0.095, transparent: true, opacity: 0.85, depthWrite: false, blending: THREE.AdditiveBlending })));
+  group.add(new THREE.Points(nodes, new THREE.PointsMaterial({
+    color: 0xff54aa,
+    size: 0.095,
+    transparent: true,
+    opacity: 0.85,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  })));
   return group;
 }
 
@@ -282,9 +346,8 @@ function makeClouds(isMobile, pixelRatio) {
   const random = mulberry32(20260912);
   const positions = [];
   const seeds = [];
-  for (let index = 0; index < (isMobile ? 34 : 66); index += 1) {
-    const sideBias = random() > 0.46 ? 1 : -1;
-    positions.push(sideBias * (4 + random() * 7), 2.2 + random() * 2.6, -8 + random() * 16);
+  for (let index = 0; index < (isMobile ? 48 : 104); index += 1) {
+    positions.push(-29 + random() * 40, 2.2 + random() * 2.8, -29 + random() * 60);
     seeds.push(random());
   }
   const geometry = new THREE.BufferGeometry();
@@ -300,8 +363,8 @@ function makeClouds(isMobile, pixelRatio) {
   return new THREE.Points(geometry, material);
 }
 
-async function loadEffectsTexture(signal) {
-  const response = await fetch(effectsMapUrl, { signal });
+async function loadEffectsTexture(url, signal) {
+  const response = await fetch(url, { signal });
   if (!response.ok) throw new Error(`Effects texture failed with ${response.status}`);
   const bitmap = await createImageBitmap(await response.blob(), { imageOrientation: "none" });
   const texture = new THREE.Texture(bitmap);
@@ -322,21 +385,45 @@ export default function TerrainBackground({ fallbackSrc }) {
     const canvas = canvasRef.current;
     const hero = canvas?.closest(".hero");
     if (!canvas || !hero) return undefined;
+
     const abortController = new AbortController();
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
     const mobileMedia = window.matchMedia("(max-width: 820px)");
-    const resources = [];
-    let renderer, scene, camera, terrainMaterial, lightPoints, clouds;
+    const resources = new Set();
+    const animatedMaterials = new Set();
+    const pointMaterials = new Set();
+    const track = (resource) => {
+      resources.add(resource);
+      return resource;
+    };
+    let renderer, scene, camera, sharedGeometry;
     let frameId = 0;
     let disposed = false;
     let isIntersecting = true;
     let lastFrame = 0;
     let lastInput = -10000;
+    let flightStartedAt = 0;
+
     const pointerTarget = new THREE.Vector2();
     const pointerCurrent = new THREE.Vector2();
-    const basePosition = new THREE.Vector3(-7.05, 9.55, 16.15);
-    const baseLookAt = new THREE.Vector3(2.15, 1.05, -1.35);
+    const basePosition = new THREE.Vector3(...terrainMetadata.flightPath.positions[0]);
+    const baseLookAt = new THREE.Vector3(...terrainMetadata.flightPath.lookAt[0]);
+    const cameraPosition = basePosition.clone();
     const lookAt = baseLookAt.clone();
+    const flightPosition = basePosition.clone();
+    const flightLookAt = baseLookAt.clone();
+    const positionCurve = new THREE.CatmullRomCurve3(
+      terrainMetadata.flightPath.positions.map((point) => new THREE.Vector3(...point)),
+      false,
+      "catmullrom",
+      0.42,
+    );
+    const lookAtCurve = new THREE.CatmullRomCurve3(
+      terrainMetadata.flightPath.lookAt.map((point) => new THREE.Vector3(...point)),
+      false,
+      "catmullrom",
+      0.42,
+    );
 
     const fail = (error) => {
       if (disposed || error?.name === "AbortError") return;
@@ -354,8 +441,7 @@ export default function TerrainBackground({ fallbackSrc }) {
       renderer.setSize(Math.max(1, Math.round(bounds.width)), Math.max(1, Math.round(bounds.height)), false);
       camera.aspect = Math.max(1, bounds.width) / Math.max(1, bounds.height);
       camera.updateProjectionMatrix();
-      if (lightPoints) lightPoints.material.uniforms.uPixelRatio.value = pixelRatio;
-      if (clouds) clouds.material.uniforms.uPixelRatio.value = pixelRatio;
+      pointMaterials.forEach((material) => { material.uniforms.uPixelRatio.value = pixelRatio; });
     };
 
     const renderFrame = (time = 0) => {
@@ -366,12 +452,27 @@ export default function TerrainBackground({ fallbackSrc }) {
       const targetY = reducedMotion.matches ? 0 : hasRecentInput ? pointerTarget.y : Math.cos(seconds * 0.061) * 0.08;
       pointerCurrent.x += (targetX - pointerCurrent.x) * 0.045;
       pointerCurrent.y += (targetY - pointerCurrent.y) * 0.045;
-      camera.position.set(basePosition.x + pointerCurrent.x * 0.95, basePosition.y - pointerCurrent.y * 0.48, basePosition.z + pointerCurrent.y * 0.34);
-      lookAt.set(baseLookAt.x + pointerCurrent.x * 0.44, baseLookAt.y - pointerCurrent.y * 0.2, baseLookAt.z);
+
+      if (flightStartedAt && !reducedMotion.matches) {
+        const cycle = ((time - flightStartedAt) / 1000) / terrainMetadata.flightPath.durationSeconds;
+        const travel = 0.5 - Math.cos(cycle * Math.PI * 2) * 0.5;
+        positionCurve.getPointAt(travel, flightPosition);
+        lookAtCurve.getPointAt(travel, flightLookAt);
+      } else {
+        flightPosition.copy(basePosition);
+        flightLookAt.copy(baseLookAt);
+      }
+
+      cameraPosition.copy(flightPosition);
+      cameraPosition.x += pointerCurrent.x * 0.95;
+      cameraPosition.y -= pointerCurrent.y * 0.48;
+      cameraPosition.z += pointerCurrent.y * 0.34;
+      lookAt.copy(flightLookAt);
+      lookAt.x += pointerCurrent.x * 0.44;
+      lookAt.y -= pointerCurrent.y * 0.2;
+      camera.position.copy(cameraPosition);
       camera.lookAt(lookAt);
-      terrainMaterial.uniforms.uTime.value = seconds;
-      lightPoints.material.uniforms.uTime.value = seconds;
-      clouds.material.uniforms.uTime.value = seconds;
+      animatedMaterials.forEach((material) => { material.uniforms.uTime.value = seconds; });
       renderer.render(scene, camera);
     };
 
@@ -398,7 +499,10 @@ export default function TerrainBackground({ fallbackSrc }) {
       if (reducedMotion.matches || !isIntersecting || !event.isPrimary) return;
       const bounds = hero.getBoundingClientRect();
       if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) return;
-      pointerTarget.set(clamp(((event.clientX - bounds.left) / bounds.width - 0.5) * 2, -1, 1), clamp(((event.clientY - bounds.top) / bounds.height - 0.5) * 2, -1, 1));
+      pointerTarget.set(
+        clamp(((event.clientX - bounds.left) / bounds.width - 0.5) * 2, -1, 1),
+        clamp(((event.clientY - bounds.top) / bounds.height - 0.5) * 2, -1, 1),
+      );
       lastInput = performance.now();
     };
 
@@ -414,9 +518,80 @@ export default function TerrainBackground({ fallbackSrc }) {
       schedule();
     }, { threshold: 0.01 });
 
+    const addTile = async (tile) => {
+      const heightUrl = assetUrl(heightAssetUrls, tile.assets.height);
+      const effectsUrl = assetUrl(effectsAssetUrls, tile.assets.effects);
+      const [heightResponse, effectsTexture] = await Promise.all([
+        fetch(heightUrl, { signal: abortController.signal }),
+        loadEffectsTexture(effectsUrl, abortController.signal),
+      ]);
+      if (!heightResponse.ok) throw new Error(`${tile.id} height map failed with ${heightResponse.status}`);
+      const heightValues = decodeHeightMap(await heightResponse.arrayBuffer());
+      if (disposed) {
+        effectsTexture.dispose();
+        effectsTexture.image?.close?.();
+        return;
+      }
+
+      const heightTexture = track(makeHeightTexture(heightValues));
+      track(effectsTexture);
+      const uvScale = terrainMetadata.tileInteriorSize / terrainMetadata.textureWidth;
+      const uvOffset = terrainMetadata.textureGutter / terrainMetadata.textureWidth;
+      const colorRange = terrainMetadata.colorElevationRangeM;
+      const terrainMaterial = track(new THREE.ShaderMaterial({
+        uniforms: {
+          uHeightMap: { value: heightTexture },
+          uEffectsMap: { value: effectsTexture },
+          uUvScale: { value: new THREE.Vector2(uvScale, uvScale) },
+          uUvOffset: { value: new THREE.Vector2(uvOffset, uvOffset) },
+          uTexel: { value: new THREE.Vector2(1 / terrainMetadata.tileInteriorSize, 1 / terrainMetadata.tileInteriorSize) },
+          uElevationMin: { value: terrainMetadata.minElevationM },
+          uElevationRange: { value: terrainMetadata.maxElevationM - terrainMetadata.minElevationM },
+          uElevationOrigin: { value: terrainMetadata.elevationOriginM },
+          uMetersPerWorldUnit: { value: terrainMetadata.metersPerWorldUnit },
+          uColorElevationMin: { value: colorRange.min },
+          uColorElevationRange: { value: colorRange.max - colorRange.min },
+          uTerrainSize: { value: terrainMetadata.tileWorldSize },
+          uTime: { value: 0 },
+        },
+        vertexShader,
+        fragmentShader,
+      }));
+      animatedMaterials.add(terrainMaterial);
+      const mesh = new THREE.Mesh(sharedGeometry, terrainMaterial);
+      mesh.position.set(
+        tile.grid.column * terrainMetadata.tileWorldSize,
+        0,
+        tile.grid.row * terrainMetadata.tileWorldSize,
+      );
+      scene.add(mesh);
+
+      const pixelRatio = Math.min(window.devicePixelRatio || 1, mobileMedia.matches ? 1 : 1.5);
+      const lights = makeLights(heightValues, tile, mobileMedia.matches, pixelRatio);
+      track(lights.geometry);
+      track(lights.material);
+      animatedMaterials.add(lights.material);
+      pointMaterials.add(lights.material);
+      scene.add(lights);
+
+      if (tile.id === "c") {
+        const routes = makeRoutes(heightValues, tile);
+        routes.traverse((object) => {
+          if (object.geometry) track(object.geometry);
+          if (object.material) track(object.material);
+        });
+        scene.add(routes);
+      }
+    };
+
     const initialize = async () => {
       try {
-        const context = canvas.getContext("webgl2", { alpha: false, antialias: !mobileMedia.matches, depth: true, powerPreference: "high-performance" });
+        const context = canvas.getContext("webgl2", {
+          alpha: false,
+          antialias: !mobileMedia.matches,
+          depth: true,
+          powerPreference: "high-performance",
+        });
         if (!context) throw new Error("WebGL2 is unavailable");
         renderer = new THREE.WebGLRenderer({ canvas, context, antialias: !mobileMedia.matches, alpha: false });
         renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -424,52 +599,33 @@ export default function TerrainBackground({ fallbackSrc }) {
         renderer.toneMappingExposure = 1.12;
         renderer.setClearColor(0x030c12, 1);
 
-        const [heightResponse, effectsTexture] = await Promise.all([
-          fetch(heightMapUrl, { signal: abortController.signal }),
-          loadEffectsTexture(abortController.signal),
-        ]);
-        if (!heightResponse.ok) throw new Error(`Height map failed with ${heightResponse.status}`);
-        const heightValues = decodeHeightMap(await heightResponse.arrayBuffer());
-        if (disposed) {
-          effectsTexture.dispose();
-          effectsTexture.image?.close?.();
-          return;
-        }
-        const heightTexture = makeHeightTexture(heightValues);
-        resources.push(heightTexture, effectsTexture);
-
         scene = new THREE.Scene();
-        scene.fog = new THREE.FogExp2(0x07131a, 0.024);
-        camera = new THREE.PerspectiveCamera(43, 1, 0.1, 70);
+        scene.fog = new THREE.FogExp2(0x07131a, 0.022);
+        camera = new THREE.PerspectiveCamera(43, 1, 0.1, 105);
         camera.position.copy(basePosition);
         camera.lookAt(baseLookAt);
-        const geometry = new THREE.PlaneGeometry(20, 20, mobileMedia.matches ? 128 : 256, mobileMedia.matches ? 128 : 256);
-        geometry.rotateX(-Math.PI / 2);
-        terrainMaterial = new THREE.ShaderMaterial({
-          uniforms: {
-            uHeightMap: { value: heightTexture },
-            uEffectsMap: { value: effectsTexture },
-            uTexel: { value: new THREE.Vector2(1 / terrainMetadata.width, 1 / terrainMetadata.height) },
-            uHeightScale: { value: TERRAIN_HEIGHT },
-            uTerrainSize: { value: 20 },
-            uTime: { value: 0 },
-          },
-          vertexShader,
-          fragmentShader,
-        });
-        scene.add(new THREE.Mesh(geometry, terrainMaterial));
-        resources.push(geometry, terrainMaterial);
+        sharedGeometry = track(new THREE.PlaneGeometry(
+          terrainMetadata.tileWorldSize,
+          terrainMetadata.tileWorldSize,
+          mobileMedia.matches ? 128 : 256,
+          mobileMedia.matches ? 128 : 256,
+        ));
+        sharedGeometry.rotateX(-Math.PI / 2);
 
-        const pixelRatio = Math.min(window.devicePixelRatio || 1, mobileMedia.matches ? 1 : 1.5);
-        lightPoints = makeLights(heightValues, mobileMedia.matches, pixelRatio);
-        clouds = makeClouds(mobileMedia.matches, pixelRatio);
-        const routes = makeRoutes(heightValues);
-        scene.add(lightPoints, clouds, routes);
-        routes.traverse((object) => {
-          if (object.geometry) resources.push(object.geometry);
-          if (object.material && !resources.includes(object.material)) resources.push(object.material);
-        });
-        resources.push(lightPoints.geometry, lightPoints.material, clouds.geometry, clouds.material);
+        const clouds = makeClouds(
+          mobileMedia.matches,
+          Math.min(window.devicePixelRatio || 1, mobileMedia.matches ? 1 : 1.5),
+        );
+        track(clouds.geometry);
+        track(clouds.material);
+        animatedMaterials.add(clouds.material);
+        pointMaterials.add(clouds.material);
+        scene.add(clouds);
+
+        const centerTile = terrainMetadata.tiles.find((tile) => tile.id === "c");
+        if (!centerTile) throw new Error("Center terrain tile is missing from the manifest");
+        await addTile(centerTile);
+        if (disposed) return;
 
         resizeObserver.observe(canvas);
         intersectionObserver.observe(hero);
@@ -481,6 +637,19 @@ export default function TerrainBackground({ fallbackSrc }) {
         renderFrame(0);
         setStatus("ready");
         schedule();
+
+        let routeComplete = true;
+        for (const tile of terrainMetadata.tiles) {
+          if (tile.id === "c") continue;
+          try {
+            await addTile(tile);
+          } catch (error) {
+            if (error?.name === "AbortError") return;
+            routeComplete = false;
+            console.warn(`Optional terrain tile ${tile.id} could not be loaded.`, error);
+          }
+        }
+        if (!disposed && routeComplete) flightStartedAt = performance.now();
       } catch (error) {
         fail(error);
       }
