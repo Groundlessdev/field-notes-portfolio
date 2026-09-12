@@ -1,5 +1,7 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
+import scientificLandscapeHero from "./assets/scientific-landscape-hero.png";
+import TerrainBackground from "./TerrainBackground";
 import "./styles.css";
 
 const disciplines = [
@@ -40,48 +42,50 @@ function ArrowIcon() {
 function App() {
   return (
     <div className="site-shell">
-      <header className="site-header">
-        <a className="wordmark" href="#top" aria-label="Field Notes home">
-          <span className="wordmark-mark">FN</span>
-          <span>Field Notes</span>
-        </a>
-        <nav aria-label="Primary navigation">
-          <a href="#work">Work</a>
-          <a href="#about">About</a>
-          <a className="contact-link" href="mailto:hello@example.com">
-            Get in touch
-          </a>
-        </nav>
-      </header>
+      <section className="hero" id="top" aria-labelledby="hero-title">
+        <TerrainBackground fallbackSrc={scientificLandscapeHero} />
+        <div className="hero-grain" aria-hidden="true" />
 
-      <main id="top">
-        <section className="hero" aria-labelledby="hero-title">
-          <div className="hero-kicker">
+        <header className="site-header">
+          <a className="wordmark" href="#top" aria-label="Field Notes home">
+            <span className="wordmark-mark">FN</span>
+            <span>Field Notes</span>
+          </a>
+          <nav aria-label="Primary navigation">
+            <a href="#work">Work</a>
+            <a href="#about">About</a>
+            <a className="contact-link" href="mailto:hello@example.com">
+              Get in touch
+            </a>
+          </nav>
+        </header>
+
+        <div className="hero-copy">
+          <p className="hero-kicker">
             <span className="pulse" aria-hidden="true" />
             Interdisciplinary practice · 2026
-          </div>
+          </p>
           <h1 id="hero-title">
             Thinking across
             <span>living systems.</span>
           </h1>
-          <div className="hero-footer">
-            <p>
-              A portfolio of research, writing, and software exploring how we
-              understand the world—and how we might inhabit it more carefully.
-            </p>
-            <a href="#work" className="text-link">
-              Explore selected work <ArrowIcon />
-            </a>
-          </div>
-          <div className="orbit" aria-hidden="true">
-            <span className="orbit-ring ring-one" />
-            <span className="orbit-ring ring-two" />
-            <span className="orbit-dot dot-one" />
-            <span className="orbit-dot dot-two" />
-            <span className="orbit-core">Φ</span>
-          </div>
-        </section>
+          <p className="hero-intro">
+            Research, writing, and software exploring how we understand the
+            world—and how we might inhabit it more carefully.
+          </p>
+        </div>
 
+        <a href="#work" className="scroll-cue">
+          <span>Explore the work</span>
+          <i aria-hidden="true" />
+        </a>
+        <div className="coordinates" aria-hidden="true">
+          <span>38.785° N</span>
+          <span>79.465° W</span>
+        </div>
+      </section>
+
+      <main>
         <section className="work-section" id="work" aria-labelledby="work-title">
           <div className="section-heading">
             <p>Selected areas</p>

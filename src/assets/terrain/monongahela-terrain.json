@@ -1,0 +1,60 @@
+{
+  "name": "Spruce Knob–Seneca Rocks, Monongahela National Forest",
+  "width": 1024,
+  "height": 1024,
+  "byteOrder": "little-endian",
+  "encoding": "uint16 normalized to the recorded elevation range",
+  "minElevationM": 362.7622,
+  "maxElevationM": 1482.0179,
+  "horizontalScaleM": 47497.164,
+  "footprintM": {
+    "width": 47867.381,
+    "depth": 47126.946
+  },
+  "bounds": {
+    "west": -79.68,
+    "south": 38.62,
+    "east": -79.25,
+    "north": 38.95
+  },
+  "projectedBounds": {
+    "xmin": -8869937.026,
+    "ymin": 4667385.084,
+    "xmax": -8822069.645,
+    "ymax": 4714512.03,
+    "spatialReference": "EPSG:3857"
+  },
+  "center": {
+    "latitude": 38.785,
+    "longitude": -79.465
+  },
+  "verticalScale": 6.5,
+  "assets": {
+    "height": "monongahela-height.r16",
+    "effects": "monongahela-effects.png",
+    "effectsChannels": {
+      "red": "D8 flow accumulation",
+      "green": "local ridge strength",
+      "blue": "low-slope valley suitability"
+    }
+  },
+  "source": {
+    "provider": "U.S. Geological Survey 3D Elevation Program (3DEP)",
+    "dataset": "Bare Earth DEM Dynamic Service",
+    "request": "https://elevation.nationalmap.gov/arcgis/rest/services/3DEPElevation/ImageServer/exportImage?bbox=-8869937.026%2C4667385.084%2C-8822069.645%2C4714512.030&bboxSR=3857&imageSR=3857&size=1024%2C1024&format=tiff&pixelType=F32&interpolation=RSP_BilinearInterpolation&adjustAspectRatio=false&f=json",
+    "license": "Public domain; available without use restrictions",
+    "retrieved": "2026-09-12",
+    "sourceProjection": "EPSG:3857",
+    "sourcePixelType": "F32",
+    "serverResampling": "bilinear"
+  },
+  "processing": {
+    "heightEncoding": "min/max normalized to unsigned 16-bit integer",
+    "heightByteLength": 2097152,
+    "derivatives": "D8 flow accumulation at 256², ridge residual, and slope-based valley suitability",
+    "maxFlowAccumulationCells": 1735,
+    "flowCoveragePercent": 12.701,
+    "ridgeCoveragePercent": 31.111,
+    "valleyCoveragePercent": 12.888
+  }
+}
