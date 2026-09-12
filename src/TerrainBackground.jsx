@@ -166,10 +166,10 @@ const cloudFragmentShader = /* glsl */ `
 `;
 
 const routeCoordinates = [
-  [[0.55, 0.76], [0.63, 0.68], [0.70, 0.60], [0.78, 0.49], [0.90, 0.38]],
-  [[0.61, 0.42], [0.68, 0.47], [0.78, 0.49], [0.86, 0.57], [0.94, 0.64]],
-  [[0.70, 0.60], [0.75, 0.70], [0.82, 0.78], [0.91, 0.84]],
-  [[0.66, 0.26], [0.73, 0.34], [0.78, 0.49], [0.87, 0.45]],
+  [[0.52, 0.73], [0.60, 0.66], [0.68, 0.58], [0.76, 0.49], [0.88, 0.40]],
+  [[0.58, 0.40], [0.66, 0.46], [0.76, 0.49], [0.84, 0.56], [0.92, 0.62]],
+  [[0.68, 0.58], [0.73, 0.68], [0.80, 0.76], [0.89, 0.81]],
+  [[0.63, 0.27], [0.70, 0.34], [0.76, 0.49], [0.85, 0.45]],
 ];
 
 const clamp = (value, minimum, maximum) => Math.max(minimum, Math.min(maximum, value));
@@ -334,8 +334,8 @@ export default function TerrainBackground({ fallbackSrc }) {
     let lastInput = -10000;
     const pointerTarget = new THREE.Vector2();
     const pointerCurrent = new THREE.Vector2();
-    const basePosition = new THREE.Vector3(-6.4, 8.9, 14.8);
-    const baseLookAt = new THREE.Vector3(1.9, 1.15, -1.45);
+    const basePosition = new THREE.Vector3(-7.05, 9.55, 16.15);
+    const baseLookAt = new THREE.Vector3(2.15, 1.05, -1.35);
     const lookAt = baseLookAt.clone();
 
     const fail = (error) => {
